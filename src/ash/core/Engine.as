@@ -1,5 +1,4 @@
-package ash.core
-{
+package ash.core {
 	import ash.signals.Signal0;
 	import flash.utils.Dictionary;
 
@@ -13,6 +12,12 @@ package ash.core
 		private var entityList : EntityList;
 		private var systemList : SystemList;
 		private var families : Dictionary;
+		
+		/**
+		 * Used to preserve the order in which families (nodes)
+		 * are iterated when added/removed to preserve system order.
+		 */
+		private var familiesIterator:Vector.<IFamily>;
 		
 		/**
 		 * Indicates if the engine is currently in its update loop.
@@ -41,6 +46,7 @@ package ash.core
 			entityNames = new Dictionary();
 			systemList = new SystemList();
 			families = new Dictionary();
+			familiesIterator = new Vector.<IFamily>();
 			updateComplete = new Signal0();
 		}
 		
@@ -60,7 +66,8 @@ package ash.core
 			entity.componentAdded.add( componentAdded );
 			entity.componentRemoved.add( componentRemoved );
 			entity.nameChanged.add( entityNameChanged );
-			for each( var family : IFamily in families )
+			
+			for each( var family : IFamily in familiesIterator )
 			{
 				family.newEntity( entity );
 			}
@@ -76,7 +83,7 @@ package ash.core
 			entity.componentAdded.remove( componentAdded );
 			entity.componentRemoved.remove( componentRemoved );
 			entity.nameChanged.remove( entityNameChanged );
-			for each( var family : IFamily in families )
+			for each( var family : IFamily in familiesIterator )
 			{
 				family.removeEntity( entity );
 			}
@@ -133,7 +140,7 @@ package ash.core
 		 */
 		private function componentAdded( entity : Entity, componentClass : Class ) : void
 		{
-			for each( var family : IFamily in families )
+			for each( var family : IFamily in familiesIterator )
 			{
 				family.componentAddedToEntity( entity, componentClass );
 			}
@@ -144,7 +151,7 @@ package ash.core
 		 */
 		private function componentRemoved( entity : Entity, componentClass : Class ) : void
 		{
-			for each( var family : IFamily in families )
+			for each( var family : IFamily in familiesIterator )
 			{
 				family.componentRemovedFromEntity( entity, componentClass );
 			}
@@ -170,6 +177,8 @@ package ash.core
 			}
 			var family : IFamily = new familyClass( nodeClass, this );
 			families[nodeClass] = family;
+			familiesIterator.push(family);
+			
 			for( var entity : Entity = entityList.head; entity; entity = entity.next )
 			{
 				family.newEntity( entity );
@@ -192,6 +201,7 @@ package ash.core
 			if( families[nodeClass] )
 			{
 				families[nodeClass].cleanUp();
+				familiesIterator.splice(familiesIterator.indexOf(families[nodeClass]), 1);
 			}
 			delete families[nodeClass];
 		}
